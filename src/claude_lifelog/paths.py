@@ -1,20 +1,23 @@
 import os
 from pathlib import Path
 from datetime import date
+from . import config
 
 
 def get_diary_dir() -> Path:
-    env = os.environ.get("LIFELOG_DIARY_DIR")
-    if env:
-        return Path(env)
-    return Path.home() / ".lifelog" / "日记"
+    return Path(
+        os.environ.get("LIFELOG_DIARY_DIR")
+        or config.get("diary_dir")
+        or str(Path.home() / ".lifelog" / "日记")
+    )
 
 
 def get_story_file() -> Path:
-    env = os.environ.get("LIFELOG_STORY_FILE")
-    if env:
-        return Path(env)
-    return Path.home() / ".lifelog" / "人生故事.md"
+    return Path(
+        os.environ.get("LIFELOG_STORY_FILE")
+        or config.get("story_file")
+        or str(Path.home() / ".lifelog" / "人生故事.md")
+    )
 
 
 def get_today_diary_path() -> Path:
