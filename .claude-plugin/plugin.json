@@ -1,0 +1,30 @@
+{
+  "name": "claude-lifelog",
+  "description": "AI-powered personal lifelog — captures daily thoughts, feelings, and life events from conversations into markdown files.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ljiaxiang922",
+    "email": "ljiaxiang922@gmail.com"
+  },
+  "homepage": "https://github.com/ljiaxiang922/claude-lifelog",
+  "repository": "https://github.com/ljiaxiang922/claude-lifelog",
+  "keywords": ["journal", "diary", "lifelog", "personal", "memory", "markdown"],
+  "license": "MIT",
+  "mcpServers": {
+    "lifelog": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "D:/ClaudeCode/claude-lifelog",
+        "python",
+        "-m",
+        "claude_lifelog.server"
+      ],
+      "env": {
+        "LIFELOG_STORY_FILE": "D:/Files/大三下/claudeanswer/7/人生故事.md",
+        "LIFELOG_DIARY_DIR": "C:/Users/86166/.lifelog/日记"
+      }
+    }
+  }
+}
