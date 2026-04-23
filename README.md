@@ -56,7 +56,13 @@ PINN 在高维参数空间的收敛性很难绕开，neural operator 路子可�
 
 claude-lifelog 有两层自动化：
 
-1. **Hook（定时触发）**：每 5 条消息或 30 分钟，自动向 Claude 发送提醒信号，要求判断是否有值得记录的内容
+1. **Hook（内容感知触发）**：每条消息提交时，Hook 脚本检测以下信号，任一满足即向 Claude 注入捕获提醒：
+   - **个人关键词**：消息含情绪词（焦虑、开心…）、活动描述（今天、去了、完成了…）、观点词（我觉得、其实…）
+   - **告别信号**：用户说"好了""晚安""去忙了"等，表示对话即将结束
+   - **兜底计时**：距上次捕获超过 60 分钟（纯技术对话的最后安全网）
+
+   纯技术讨论（debug、查文档、写代码）全程不触发，不浪费 token。
+
 2. **Skill（主动判断）**：`lifelog-capture` skill 让 Claude 始终作为背景观察者——只要对话中出现个人内容，无论 Hook 是否触发，都会在回复末尾主动写入
 
 写入成功后，Claude 会在回复末尾附上：`📝 已记入今日日记。`
@@ -67,7 +73,7 @@ claude-lifelog 有两层自动化：
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/ljiaxiang922/claude-lifelog.git
+git clone https://github.com/Sunrise-Seeker/claude-lifelog.git
 cd claude-lifelog
 
 # 2. 安装 Python 依赖
