@@ -1,57 +1,163 @@
 # claude-lifelog
 
-AI-powered personal lifelog plugin for Claude Code. Captures daily thoughts, feelings, and life events from conversations — so your brain doesn't have to.
+> 你的 AI 外置大脑。从与 Claude 的对话中自动捕获日常事件、想法和心理状态，分类写入 Markdown 日记文件。
 
-## What it does
+---
 
-- **Auto-captures** personal content from conversations (daily events, feelings, ideas)
-- **Two-track storage**: daily diary (small things) + life story (major events)
-- **Proactive**: Claude decides when to record, you don't have to ask
-- **Markdown-first**: human-readable files, Git-friendly
+## 为什么需要这个
 
-## Storage
+大脑的缓存很小。今天做了什么、突然闪过什么想法、现在是什么心情——这些如果不记下来，明天就忘了。
 
-| Content | Location |
-|---------|----------|
-| Daily thoughts & feelings | `~/.lifelog/日记/YYYY-MM-DD.md` |
-| Major life events | Configured via `LIFELOG_STORY_FILE` env var |
+claude-lifelog 让 Claude 充当你的外置记忆：**你只管和 Claude 聊，它负责把值得记的内容悄悄写进日记**，不需要你手动说"帮我记一下"。
 
-## Installation
+---
 
-```bash
-cd claude-lifelog
-uv sync
-claude /plugin install .
+## 三类内容
+
+| 类型 | emoji | 什么时候写 | 例子 |
+|------|-------|-----------|------|
+| **记事** | 📋 | 今天做了什么、发生了什么 | "让 Claude 搭了个日记插件" |
+| **想法** | 💭 | 对某话题的看法、分析、观点 | "关于 PINN 收敛性的思考" |
+| **心理状态** | 🌡 | 情绪、感受、整体状态 | "有点焦虑，在等 5 月的消息" |
+
+一次对话可能同时触发多类。
+
+另外保留了**人生故事**轨道（单独文件），专门记重大事件和人生转折点。
+
+---
+
+## 每日文件格式
+
+```markdown
+---
+date: 2026-04-23
+tags: []
+---
+
+# 2026-04-23
+
+## 📋 记事
+
+- **15:25** 让 Claude 搭建了 claude-lifelog 插件，用 Python 写的 MCP server
+
+## 💭 想法
+
+### 关于 PINN 的收敛性
+PINN 在高维参数空间的收敛性很难绕开，neural operator 路子可能更实际……
+
+## 🌡 心理状态
+
+**20:30** 对 5 月创智学院的消息还是有底层焦虑，虽然今天干活效率还不错
 ```
 
-## Configuration (via environment variables)
+---
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LIFELOG_DIARY_DIR` | `~/.lifelog/日记` | Directory for daily diary files |
-| `LIFELOG_STORY_FILE` | `~/.lifelog/人生故事.md` | Path to the life story file |
+## 自动捕获机制
 
-## Commands
+claude-lifelog 有两层自动化：
 
-| Command | Description |
-|---------|-------------|
-| `/lifelog` | Manually record a thought or event |
-| `/lifelog-today` | View today's diary entries |
+1. **Hook（定时触发）**：每 5 条消息或 30 分钟，自动向 Claude 发送提醒信号，要求判断是否有值得记录的内容
+2. **Skill（主动判断）**：`lifelog-capture` skill 让 Claude 始终作为背景观察者——只要对话中出现个人内容，无论 Hook 是否触发，都会在回复末尾主动写入
 
-## MCP Tools
+写入成功后，Claude 会在回复末尾附上：`📝 已记入今日日记。`
 
-| Tool | Description |
-|------|-------------|
-| `lifelog_write` | Write an entry to today's diary |
-| `lifelog_read_today` | Read today's diary |
-| `lifelog_search` | Search across all diary files |
-| `lifelog_append_story` | Append a major life event to the story file |
+---
 
-## How it works
+## 安装
 
-1. A **hook** fires every 5 messages (or 30 min), signaling Claude to consider recording
-2. The **lifelog-capture skill** makes Claude proactively judge whether conversation content is worth saving
-3. Claude calls `lifelog_write` silently and mentions it at the end of the reply
+```bash
+# 1. 克隆项目
+git clone https://github.com/ljiaxiang922/claude-lifelog.git
+cd claude-lifelog
+
+# 2. 安装 Python 依赖
+uv sync
+
+# 3. 注册 MCP 服务器（按实际路径修改）
+claude mcp add-json lifelog '{
+  "type": "stdio",
+  "command": "uv",
+  "args": ["run", "--project", "/path/to/claude-lifelog", "python", "-m", "claude_lifelog.server"],
+  "env": {
+    "LIFELOG_STORY_FILE": "/path/to/人生故事.md",
+    "LIFELOG_DIARY_DIR": "/path/to/.lifelog/日记"
+  }
+}' -s user
+
+# 4. 复制 skill 到全局目录
+cp -r skills/lifelog-capture ~/.claude/skills/
+
+# 5. 复制 hook 脚本
+cp hooks/capture-hook.js ~/.claude/lifelog-capture-hook.js
+
+# 6. 在 ~/.claude/settings.json 的 hooks.UserPromptSubmit 中加入：
+# {"type": "command", "command": "node ~/.claude/lifelog-capture-hook.js"}
+```
+
+---
+
+## 路径配置
+
+优先级：**环境变量 > config.json > 默认值**
+
+### 方式一：环境变量（在 MCP 注册时设置）
+
+| 变量名 | 说明 |
+|--------|------|
+| `LIFELOG_DIARY_DIR` | 每日日记目录（默认 `~/.lifelog/日记`） |
+| `LIFELOG_STORY_FILE` | 人生故事文件路径（默认 `~/.lifelog/人生故事.md`） |
+
+### 方式二：运行时修改（无需重启）
+
+```
+让 Claude 调用 lifelog_config(diary_dir="/new/path", story_file="/new/file.md")
+```
+
+配置持久化在 `~/.lifelog/config.json`。
+
+---
+
+## 手动命令
+
+| 命令 | 功能 |
+|------|------|
+| `/lifelog [内容]` | 立即记录一条，自动分类 |
+| `/lifelog-today` | 查看今天的日记 |
+| `/lifelog-search [关键词]` | 全局搜索 |
+| `/lifelog-summary` | 近 7 天摘要 |
+| `/lifelog-summary month` | 近 30 天摘要 |
+
+---
+
+## MCP 工具（给 Claude 用的）
+
+| 工具 | 说明 |
+|------|------|
+| `lifelog_write_event(content)` | 写记事（做了什么） |
+| `lifelog_write_thought(topic, content)` | 写想法（带主题标题） |
+| `lifelog_write_state(content)` | 写心理状态（情绪感受） |
+| `lifelog_read_today()` | 读今天的日记 |
+| `lifelog_search(query, category?, date_from?, date_to?)` | 搜索，支持分类和时间过滤 |
+| `lifelog_summary(period)` | 摘要（week \| month） |
+| `lifelog_append_story(content)` | 追加到人生故事（重大事件） |
+| `lifelog_config(diary_dir?, story_file?, show?)` | 查看/修改路径配置 |
+
+---
+
+## 存储结构
+
+```
+~/.lifelog/
+├── 日记/
+│   ├── 2026-04-22.md
+│   ├── 2026-04-23.md
+│   └── ...
+└── config.json          ← 可选，运行时配置
+
+（人生故事文件路径由配置决定，默认 ~/.lifelog/人生故事.md）
+```
+
+---
 
 ## License
 

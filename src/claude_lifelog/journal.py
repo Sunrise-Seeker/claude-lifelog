@@ -2,6 +2,8 @@ from pathlib import Path
 from datetime import datetime, date, timedelta
 from .paths import get_diary_dir, get_story_file, get_today_diary_path
 
+MAX_ENTRY_LEN = 500  # 单条记录最大字符数（超过则截断并提示）
+
 SECTIONS = {
     "event":   "📋 记事",
     "thought": "💭 想法",
@@ -69,30 +71,39 @@ def _extract_section(text: str, section_header: str) -> str:
 
 # ── Write helpers ─────────────────────────────────────────────────────────────
 
+def _validate(content: str, label: str = "内容") -> str:
+    content = content.strip()
+    if not content:
+        raise ValueError(f"{label}不能为空")
+    if len(content) > MAX_ENTRY_LEN:
+        content = content[:MAX_ENTRY_LEN] + "……（已截断）"
+    return content
+
+
 def write_event(content: str) -> str:
+    content = _validate(content, "记事")
     path = get_today_diary_path()
-    date_str = date.today().strftime("%Y-%m-%d")
-    _ensure_today(path, date_str)
+    _ensure_today(path, date.today().strftime("%Y-%m-%d"))
     time_str = datetime.now().strftime("%H:%M")
-    _append_to_section(path, SECTIONS["event"], f"- **{time_str}** {content.strip()}")
+    _append_to_section(path, SECTIONS["event"], f"- **{time_str}** {content}")
     return str(path)
 
 
 def write_thought(topic: str, content: str) -> str:
+    topic = _validate(topic, "想法主题")
+    content = _validate(content, "想法内容")
     path = get_today_diary_path()
-    date_str = date.today().strftime("%Y-%m-%d")
-    _ensure_today(path, date_str)
-    entry = f"### {topic.strip()}\n{content.strip()}"
-    _append_to_section(path, SECTIONS["thought"], entry)
+    _ensure_today(path, date.today().strftime("%Y-%m-%d"))
+    _append_to_section(path, SECTIONS["thought"], f"### {topic}\n{content}")
     return str(path)
 
 
 def write_state(content: str) -> str:
+    content = _validate(content, "心理状态")
     path = get_today_diary_path()
-    date_str = date.today().strftime("%Y-%m-%d")
-    _ensure_today(path, date_str)
+    _ensure_today(path, date.today().strftime("%Y-%m-%d"))
     time_str = datetime.now().strftime("%H:%M")
-    _append_to_section(path, SECTIONS["state"], f"**{time_str}** {content.strip()}")
+    _append_to_section(path, SECTIONS["state"], f"**{time_str}** {content}")
     return str(path)
 
 
@@ -117,12 +128,20 @@ def search(
     diary_dir = get_diary_dir()
     results = []
 
+    # 预解析日期过滤（用 date 对象而不是字符串比较）
+    from_date = date.fromisoformat(date_from) if date_from else None
+    to_date = date.fromisoformat(date_to) if date_to else None
+
     for md_file in sorted(diary_dir.glob("*.md"), reverse=True):
         date_str = md_file.stem
+        try:
+            file_date = date.fromisoformat(date_str)
+        except ValueError:
+            continue  # 跳过非日期命名的文件
 
-        if date_from and date_str < date_from:
+        if from_date and file_date < from_date:
             continue
-        if date_to and date_str > date_to:
+        if to_date and file_date > to_date:
             continue
 
         try:
