@@ -163,8 +163,3 @@ cp hooks/capture-hook.js ~/.claude/lifelog-capture-hook.js
 （人生故事文件路径由配置决定，默认 ~/.lifelog/人生故事.md）
 ```
 
----
-
-## License
-
-MIT
