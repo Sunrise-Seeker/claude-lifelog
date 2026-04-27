@@ -7,26 +7,26 @@ mcp = FastMCP("claude-lifelog")
 
 @mcp.tool()
 def lifelog_write_event(content: str) -> str:
-    """记录一条「记事」——今天做了什么、发生了什么，写成简洁的事件条目。"""
+    """记录一条「记事」——今天做了什么、发生了什么。保持简洁，一句话时间线风格。"""
     path = journal.write_event(content)
-    return f"✓ 记事已写入：{path}"
+    return "⚠️ 已跳过：今天日记中已有相似内容。" if path is None else f"✓ 记事已写入：{path}"
 
 
 @mcp.tool()
 def lifelog_write_thought(topic: str, content: str) -> str:
-    """记录一个「想法」——对某个话题（论文/方向/某人/某事）的看法、分析和观点。
-    topic: 想法的主题标题，如「关于 PINN 的收敛性」
+    """记录一个「想法」——对某个话题的看法、分析和观点。可以详细展开。
+    topic: 想法的主题标题
     content: 具体内容
     """
     path = journal.write_thought(topic, content)
-    return f"✓ 想法已写入：{path}"
+    return "⚠️ 已跳过：今天日记中已有相似内容。" if path is None else f"✓ 想法已写入：{path}"
 
 
 @mcp.tool()
 def lifelog_write_state(content: str) -> str:
-    """记录「心理状态」——今天的情绪、感受、焦虑或期待。"""
+    """记录「心理状态」——今天的情绪、感受、焦虑或期待。可以详细描述。"""
     path = journal.write_state(content)
-    return f"✓ 心理状态已写入：{path}"
+    return "⚠️ 已跳过：今天日记中已有相似内容。" if path is None else f"✓ 心理状态已写入：{path}"
 
 
 @mcp.tool()

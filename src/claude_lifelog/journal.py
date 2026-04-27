@@ -80,28 +80,60 @@ def _validate(content: str, label: str = "内容") -> str:
     return content
 
 
-def write_event(content: str) -> str:
+def _is_duplicate(existing_text: str, new_content: str, threshold: float = 0.55) -> bool:
+    """Return True if new_content is substantially similar to any line in existing_text."""
+    if not existing_text.strip():
+        return False
+    new_words = set(w for w in new_content.lower().split() if len(w) > 1)
+    if len(new_words) < 4:
+        return False
+    for line in existing_text.split("\n"):
+        line = line.strip()
+        if len(line) < 5:
+            continue
+        line_words = set(w for w in line.lower().split() if len(w) > 1)
+        if len(line_words) < 3:
+            continue
+        union = new_words | line_words
+        if union and len(new_words & line_words) / len(union) >= threshold:
+            return True
+    return False
+
+
+def write_event(content: str) -> str | None:
+    """Returns file path if written, None if duplicate."""
     content = _validate(content, "记事")
     path = get_today_diary_path()
     _ensure_today(path, date.today().strftime("%Y-%m-%d"))
+    existing = _extract_section(path.read_text(encoding="utf-8"), SECTIONS["event"])
+    if _is_duplicate(existing, content):
+        return None
     time_str = datetime.now().strftime("%H:%M")
     _append_to_section(path, SECTIONS["event"], f"- **{time_str}** {content}")
     return str(path)
 
 
-def write_thought(topic: str, content: str) -> str:
+def write_thought(topic: str, content: str) -> str | None:
+    """Returns file path if written, None if duplicate."""
     topic = _validate(topic, "想法主题")
     content = _validate(content, "想法内容")
     path = get_today_diary_path()
     _ensure_today(path, date.today().strftime("%Y-%m-%d"))
+    existing = _extract_section(path.read_text(encoding="utf-8"), SECTIONS["thought"])
+    if f"### {topic}" in existing or _is_duplicate(existing, content):
+        return None
     _append_to_section(path, SECTIONS["thought"], f"### {topic}\n{content}")
     return str(path)
 
 
-def write_state(content: str) -> str:
+def write_state(content: str) -> str | None:
+    """Returns file path if written, None if duplicate."""
     content = _validate(content, "心理状态")
     path = get_today_diary_path()
     _ensure_today(path, date.today().strftime("%Y-%m-%d"))
+    existing = _extract_section(path.read_text(encoding="utf-8"), SECTIONS["state"])
+    if _is_duplicate(existing, content):
+        return None
     time_str = datetime.now().strftime("%H:%M")
     _append_to_section(path, SECTIONS["state"], f"**{time_str}** {content}")
     return str(path)
