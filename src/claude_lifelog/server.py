@@ -81,6 +81,12 @@ def lifelog_append_story(content: str) -> str:
 
 
 @mcp.tool()
+def lifelog_read_recent(days: int = 3) -> str:
+    """读取最近 N 天（默认3天）的日记内容，用于回顾或避免跨天重复记录。"""
+    return journal.read_recent(days)
+
+
+@mcp.tool()
 def lifelog_config(
     diary_dir: str = None,
     story_file: str = None,
@@ -96,7 +102,6 @@ def lifelog_config(
     if story_file:
         config.set_value("story_file", story_file)
 
-    current = config.load()
     return (
         f"当前配置：\n"
         f"  每日日记目录：{get_diary_dir()}\n"

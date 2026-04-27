@@ -23,9 +23,10 @@ const PERSONAL_KEYWORDS = [
 ];
 
 // Farewell signals — conversation is ending, always trigger
+// Note: '好了' excluded — too common in non-farewell contexts
 const FAREWELL_KEYWORDS = [
-  '好了', '再见', '晚安', '去忙了', '谢了', '拜拜',
-  '先这样', '就这样吧', '去睡了', '我先去', '告辞',
+  '再见', '晚安', '去忙了', '谢了', '拜拜',
+  '先这样', '就这样吧', '去睡了', '我先去', '告辞', '下线了',
 ];
 
 function loadState() {

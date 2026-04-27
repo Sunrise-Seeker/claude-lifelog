@@ -80,22 +80,33 @@ def _validate(content: str, label: str = "内容") -> str:
     return content
 
 
+def _tokenize(text: str) -> set:
+    """Character-level tokens for CJK; alphanumeric for ASCII. Works for mixed text."""
+    tokens = []
+    for ch in text.lower():
+        if '一' <= ch <= '鿿':  # CJK Unified Ideographs
+            tokens.append(ch)
+        elif ch.isalnum():
+            tokens.append(ch)
+    return set(tokens)
+
+
 def _is_duplicate(existing_text: str, new_content: str, threshold: float = 0.55) -> bool:
     """Return True if new_content is substantially similar to any line in existing_text."""
     if not existing_text.strip():
         return False
-    new_words = set(w for w in new_content.lower().split() if len(w) > 1)
-    if len(new_words) < 4:
+    new_tokens = _tokenize(new_content)
+    if len(new_tokens) < 4:
         return False
     for line in existing_text.split("\n"):
         line = line.strip()
         if len(line) < 5:
             continue
-        line_words = set(w for w in line.lower().split() if len(w) > 1)
-        if len(line_words) < 3:
+        line_tokens = _tokenize(line)
+        if len(line_tokens) < 3:
             continue
-        union = new_words | line_words
-        if union and len(new_words & line_words) / len(union) >= threshold:
+        union = new_tokens | line_tokens
+        if union and len(new_tokens & line_tokens) / len(union) >= threshold:
             return True
     return False
 
@@ -113,6 +124,23 @@ def write_event(content: str) -> str | None:
     return str(path)
 
 
+def _append_to_thought_topic(path: Path, topic: str, additional: str) -> None:
+    """Append additional content under an existing ### topic heading."""
+    text = path.read_text(encoding="utf-8")
+    sub_marker = f"### {topic}"
+    if sub_marker not in text:
+        return
+    sub_start = text.index(sub_marker) + len(sub_marker)
+    after = text[sub_start:]
+    ends = [after.find(m) for m in ("\n### ", "\n## ") if after.find(m) != -1]
+    if ends:
+        insert_at = sub_start + min(ends)
+        new_text = text[:insert_at].rstrip() + f"\n\n{additional}\n" + text[insert_at:]
+    else:
+        new_text = text.rstrip() + f"\n\n{additional}\n"
+    path.write_text(new_text, encoding="utf-8")
+
+
 def write_thought(topic: str, content: str) -> str | None:
     """Returns file path if written, None if duplicate."""
     topic = _validate(topic, "想法主题")
@@ -120,9 +148,13 @@ def write_thought(topic: str, content: str) -> str | None:
     path = get_today_diary_path()
     _ensure_today(path, date.today().strftime("%Y-%m-%d"))
     existing = _extract_section(path.read_text(encoding="utf-8"), SECTIONS["thought"])
-    if f"### {topic}" in existing or _is_duplicate(existing, content):
+    if _is_duplicate(existing, content):
         return None
-    _append_to_section(path, SECTIONS["thought"], f"### {topic}\n{content}")
+    if f"### {topic}" in existing:
+        # Same topic exists but different content — append under existing heading
+        _append_to_thought_topic(path, topic, content)
+    else:
+        _append_to_section(path, SECTIONS["thought"], f"### {topic}\n{content}")
     return str(path)
 
 
@@ -146,6 +178,26 @@ def read_today() -> str:
     if not path.exists():
         return "今天还没有日记。"
     return path.read_text(encoding="utf-8")
+
+
+def read_recent(days: int = 3) -> str:
+    diary_dir = get_diary_dir()
+    cutoff = date.today() - timedelta(days=days)
+    entries = []
+    for md_file in sorted(diary_dir.glob("*.md"), reverse=True):
+        try:
+            file_date = date.fromisoformat(md_file.stem)
+        except ValueError:
+            continue
+        if file_date < cutoff:
+            break
+        try:
+            entries.append((md_file.stem, md_file.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    if not entries:
+        return f"最近 {days} 天没有日记记录。"
+    return "\n\n---\n\n".join(f"# {d}\n\n{text.strip()}" for d, text in entries)
 
 
 # ── Search ────────────────────────────────────────────────────────────────────
